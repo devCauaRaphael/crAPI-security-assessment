@@ -1,0 +1,231 @@
+crAPI SECURITY ASSESSMENT — LEARNING NOTES
+==========================================
+Purpose: explain the findings from an educational black-box assessment.
+This document is not a LinkedIn post. It is a bilingual technical summary
+that can be adapted for the repository and used as a record of learning.
+
+PORTUGUÊS
+---------
+
+Título
+------
+Análise de segurança do crAPI: aprendizados sobre BOLA, IDOR, exposição de
+dados e autenticação
+
+Objetivo e contexto
+-------------------
+Este projeto foi desenvolvido com finalidade educacional. O objetivo foi
+praticar testes de segurança de APIs por meio de uma abordagem black-box
+no crAPI (Completely Ridiculous API), uma aplicação intencionalmente
+vulnerável utilizada para treinamento em segurança de aplicações.
+
+A análise foi delimitada a controles de autorização em nível de objeto
+(BOLA/IDOR), exposição de dados e mecanismos de autenticação. O foco foi
+observar o comportamento da aplicação por meio das funcionalidades e das
+requisições e respostas HTTP, sem depender da análise do código-fonte.
+
+Vulnerabilidades e comportamentos identificados
+-----------------------------------------------
+
+1. BOLA/IDOR — /vehicle-service-dashboard?VIN=
+Foi possível alterar o parâmetro VIN e visualizar informações sensíveis
+associadas ao veículo de outro usuário. Esse comportamento indica uma falha
+de autorização em nível de objeto: a aplicação não deveria permitir que a
+alteração de um identificador, por si só, concedesse acesso a dados de outro
+usuário.
+
+2. BOLA/IDOR — /api/v2/vehicle/<carId>/location
+Ao manipular o identificador carId, foi possível visualizar a localização
+de outro veículo. Esse achado demonstra a importância de validar, no servidor,
+se o usuário autenticado tem permissão para consultar a localização do
+veículo solicitado. Informações de localização podem ser sensíveis porque
+podem revelar a posição física ou padrões de deslocamento.
+
+3. BOLA/IDOR — /api/mechanic/service_request/<serviceId>
+A alteração de serviceId permitiu visualizar dados de uma solicitação de
+serviço pertencente a outro usuário. Solicitações desse tipo podem conter
+informações sobre o veículo, o problema relatado e detalhes associados ao
+cliente. O servidor deve validar a autorização para cada solicitação acessada.
+
+4. BOLA/IDOR — /contact-mechanic?VIN=
+Ao manipular o VIN, foi possível abrir um relatório de erro destinado ao
+mecânico associado a um veículo de outro usuário. O impacto exato depende
+do comportamento da funcionalidade — por exemplo, se ela apenas abre uma
+tela, consulta dados ou efetivamente cria/submete um relatório. O achado
+reforça que a autorização deve ser verificada também em fluxos que executam
+ações, não apenas em endpoints de leitura.
+
+5. Exposição de dados — /community/api/v2/community/posts/
+A resposta desse endpoint apresentou dados associados a outros usuários.
+A relevância de segurança depende dos campos retornados e das expectativas
+de privacidade da aplicação: conteúdo público não constitui, por si só, uma
+vulnerabilidade, mas informações que deveriam ser restritas podem configurar
+exposição indevida. A documentação do achado deve indicar quais campos foram
+expostos e por que não deveriam estar disponíveis publicamente, sem publicar
+os valores sensíveis.
+
+6. Proteção de autenticação — tentativas repetidas de senha no login
+Após identificar o e-mail da conta administrativa no laboratório, foram
+realizadas tentativas repetidas de senha pela página de login até identificar
+a senha da conta. O aprendizado está relacionado à resistência do fluxo de
+autenticação a ataques de força bruta. É importante registrar se havia
+limitação de taxa, atrasos, bloqueio temporário ou outros controles. Não
+inclua a senha encontrada, listas de senhas funcionais, tokens ou cookies no
+repositório. A classificação final deve refletir os controles observados;
+a possibilidade de força bruta pode indicar proteção insuficiente contra
+tentativas automatizadas, mas não é, isoladamente, prova de toda e qualquer
+falha de autenticação.
+
+Principais aprendizados
+-----------------------
+- Estar autenticado não significa estar autorizado a acessar todos os
+  objetos da aplicação.
+- Identificadores como VIN, carId e serviceId não devem funcionar como
+  mecanismos de autorização.
+- A aplicação deve verificar no servidor se o usuário pode acessar o objeto
+  solicitado em cada requisição.
+- A análise de exposição de dados exige avaliar quais campos deveriam ser
+  públicos e quais deveriam ser privados.
+- Fluxos de login devem ter defesas proporcionais contra força bruta e
+  tentativas automatizadas de adivinhar credenciais.
+- Evidências sanitizadas e reproduzíveis tornam um relatório mais claro,
+  verificável e útil para aprendizado.
+
+Abordagem e intenção
+--------------------
+A intenção deste trabalho foi aprender, praticar e consolidar conhecimentos
+de segurança de APIs em um ambiente de treinamento intencionalmente
+vulnerável. Os achados servem como registro do processo de investigação e
+como base para estudar causas, impactos e formas de mitigação. Este material
+não representa uma alegação de teste contra um serviço de produção.
+
+Recomendações gerais
+--------------------
+- Aplicar autorização em nível de objeto no servidor em todas as operações
+  que leem ou modificam recursos.
+- Vincular as consultas ao usuário autenticado e às permissões que ele possui.
+- Retornar somente os campos necessários e explicitamente permitidos.
+- Aplicar limitação de tentativas, monitoramento e proteções contra ataques
+  automatizados no fluxo de autenticação.
+- Validar correções com testes negativos usando contas de laboratório
+  distintas.
+- Remover ou mascarar tokens, cookies, senhas e valores pessoais das evidências.
+
+Referências
+-----------
+OWASP crAPI: https://github.com/OWASP/crAPI
+OWASP API Security Project: https://owasp.org/www-project-api-security/
+OWASP API Security Top 10 (2023):
+https://owasp.org/API-Security/editions/2023/en/0x00-header/
+
+
+ENGLISH
+-------
+
+Title
+-----
+crAPI Security Assessment: Lessons on BOLA, IDOR, Data Exposure, and
+Authentication
+
+Purpose and context
+-------------------
+This project was conducted for educational purposes. The goal was to practice
+black-box API security testing against crAPI (Completely Ridiculous API), an
+intentionally vulnerable application used for application and API security
+training.
+
+The assessment focused on object-level authorization (BOLA/IDOR), data
+exposure, and authentication protections. The application was examined
+through its features and HTTP requests and responses, without relying on
+source-code review.
+
+Findings and observed behavior
+------------------------------
+
+1. BOLA/IDOR — /vehicle-service-dashboard?VIN=
+Changing the VIN parameter made it possible to view sensitive information
+associated with another user's vehicle. This indicates an object-level
+authorization issue: changing an identifier alone should not grant access to
+another user's data.
+
+2. BOLA/IDOR — /api/v2/vehicle/<carId>/location
+Manipulating carId made it possible to view another vehicle's location. This
+finding highlights the need for the server to verify that the authenticated
+user is authorized to access the requested vehicle's location. Location data
+can be sensitive because it may reveal physical whereabouts or movement
+patterns.
+
+3. BOLA/IDOR — /api/mechanic/service_request/<serviceId>
+Changing serviceId made it possible to view service-request data belonging to
+another user. Such requests may contain vehicle details, issue descriptions,
+or customer-related information. The server should check authorization for
+every service request being accessed.
+
+4. BOLA/IDOR — /contact-mechanic?VIN=
+Manipulating the VIN made it possible to open an error report intended for the
+mechanic associated with another user's vehicle. The precise impact depends on
+the workflow's behavior—for example, whether it only opens a page, retrieves
+data, or actually creates/submits a report. This finding emphasizes that
+authorization must also be checked in action-oriented workflows, not only
+read-only endpoints.
+
+5. Data exposure — /community/api/v2/community/posts/
+The endpoint response included data associated with other users. The security
+significance depends on which fields were returned and the application's
+privacy expectations: public content is not inherently a vulnerability, but
+information that should be restricted may represent improper exposure. A
+complete report should identify the exposed field names and explain why they
+should not be publicly available, without publishing sensitive values.
+
+6. Authentication protection — repeated password attempts at login
+After identifying the administrative account's email in the lab, repeated
+password attempts were made through the login page until the account password
+was identified. The learning focus is the login flow's resistance to brute
+force. Record whether rate limiting, delays, temporary lockout, or other
+controls were present. Do not include the discovered password, usable
+password lists, tokens, or cookies in the repository. The final classification
+should reflect the controls actually observed: successful guessing may indicate
+insufficient protection against automated attempts, but does not by itself
+prove every possible form of authentication weakness.
+
+Key lessons
+-----------
+- Authentication does not mean a user is authorized to access every object.
+- Identifiers such as VIN, carId, and serviceId must not act as authorization
+  mechanisms.
+- The server should verify the user's permission to access a requested object
+  on every relevant request.
+- Data-exposure testing requires distinguishing intended public fields from
+  private or restricted information.
+- Login flows need appropriate defenses against brute-force and automated
+  credential-guessing attempts.
+- Sanitized, reproducible evidence makes a security report clearer,
+  verifiable, and more useful for learning.
+
+Approach and intent
+-------------------
+The purpose of this work was to learn, practice, and strengthen API security
+skills in an intentionally vulnerable training environment. The findings
+record the investigation process and provide a basis for studying root causes,
+impact, and remediation. This document does not claim that testing was
+performed against a production service.
+
+General recommendations
+-----------------------
+- Enforce server-side object-level authorization for every operation that
+  reads or modifies resources.
+- Scope data access to the authenticated user and their actual permissions.
+- Return only fields that are necessary and explicitly permitted.
+- Apply attempt limits, monitoring, and defenses against automated attacks
+  to authentication flows.
+- Validate fixes with negative tests using separate lab accounts.
+- Remove or redact tokens, cookies, passwords, and personal values from
+  published evidence.
+
+References
+----------
+OWASP crAPI: https://github.com/OWASP/crAPI
+OWASP API Security Project: https://owasp.org/www-project-api-security/
+OWASP API Security Top 10 (2023):
+https://owasp.org/API-Security/editions/2023/en/0x00-header/
+
